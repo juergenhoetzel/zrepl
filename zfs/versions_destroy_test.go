@@ -221,3 +221,13 @@ func TestBatchDestroySnaps(t *testing.T) {
 	})
 
 }
+
+func TestMaxArgumentLengthSupportedOnThisOS(t *testing.T) {
+	t.Logf("maxArgumentLength=%v", maxArgumentLength)
+	maxArg := bytes.Repeat([]byte("a"), maxArgumentLength)
+	cmd := exec.Command("/bin/sh", "-c", "echo -n $1; echo -n $2", "cmdname", string(maxArg), string(maxArg))
+	output, err := cmd.CombinedOutput()
+	assert.NoError(t, err)
+	t.Logf("%v %v", len(maxArg), len(output))
+	assert.Equal(t, bytes.Repeat(maxArg, 2), output)
+}

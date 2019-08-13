@@ -340,8 +340,13 @@ func (d destroyerImpl) DestroySnapshotsCommaSyntaxSupported() (bool, error) {
 	return envconst.Bool("ZREPL_EXPERIMENTAL_ZFS_COMMA_SYNTAX_SUPPORTED", false), nil // TODO
 }
 
+// Linux execve man page says MAX_ARG_STRLEN = 32 pages
+// Let's hope the other platforms behave similarly.
+// (we check this in the tests)
+//
+// Decrement by 1 to account for the trailing \0 byte (why isn't it called MAX_ARG_LEN, then?).
+var maxArgumentLength = envconst.Int("ZREPL_ZFS_MAX_ARGUMENT_LENGTH", (os.Getpagesize()<<5)-1)
+
 func (d destroyerImpl) MaxSingleArgumentLength() int {
-	// Linux execve man page says MAX_ARG_STRLEN = 32 pages
-	// Let's hope the other platforms behave similarly
-	return envconst.Int("ZREPL_ZFS_MAX_ARGUMENT_LENGTH", os.Getpagesize()<<5)
+	return maxArgumentLength
 }
