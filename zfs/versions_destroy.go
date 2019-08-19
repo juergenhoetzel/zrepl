@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/zrepl/zrepl/util/envconst"
@@ -210,6 +212,24 @@ func (d destroyerImpl) Destroy(args []string) error {
 	return ZFSDestroy(args[0])
 }
 
+var batchDestroyFeatureCheck struct {
+	once   sync.Once
+	enable bool
+	err    error
+}
+
 func (d destroyerImpl) DestroySnapshotsCommaSyntaxSupported() (bool, error) {
-	return envconst.Bool("ZREPL_EXPERIMENTAL_ZFS_COMMA_SYNTAX_SUPPORTED", false), nil // TODO
+	batchDestroyFeatureCheck.once.Do(func() {
+		// "feature discovery"
+		cmd := exec.Command("zfs", "destroy")
+		output, err := cmd.CombinedOutput()
+		if _, ok := err.(*exec.ExitError); !ok {
+			debug("destroy feature check failed: %T %s", err, err)
+			batchDestroyFeatureCheck.err = err
+		}
+		def := strings.Contains(string(output), "<filesystem|volume>@<snap>[%<snap>][,...]")
+		batchDestroyFeatureCheck.enable = envconst.Bool("ZREPL_EXPERIMENTAL_ZFS_COMMA_SYNTAX_SUPPORTED", def)
+		debug("destroy feature check complete %#v", batchDestroyFeatureCheck)
+	})
+	return batchDestroyFeatureCheck.enable, batchDestroyFeatureCheck.err
 }
