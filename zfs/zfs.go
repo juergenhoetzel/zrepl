@@ -1069,6 +1069,7 @@ func tryParseDestroySnapshotsError(arg string, stderr []byte) *DestroySnapshotsE
 	}
 
 	return &DestroySnapshotsError{
+		RawLines:      rawLines,
 		Filesystem:    filesystem,
 		Undestroyable: undestroyable,
 		Reason:        reason,

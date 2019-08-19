@@ -87,7 +87,6 @@ func doDestroySeq(ctx context.Context, reqs []*DestroySnapOp, e destroyer) {
 	for _, r := range reqs {
 		*r.ErrOut = e.Destroy([]string{fmt.Sprintf("%s@%s", r.Filesystem, r.Name)})
 	}
-	return
 }
 
 func doDestroyBatched(ctx context.Context, reqs []*DestroySnapOp, d destroyer) {
