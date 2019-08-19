@@ -229,7 +229,7 @@ func (d destroyerImpl) DestroySnapshotsCommaSyntaxSupported() (bool, error) {
 		}
 		def := strings.Contains(string(output), "<filesystem|volume>@<snap>[%<snap>][,...]")
 		batchDestroyFeatureCheck.enable = envconst.Bool("ZREPL_EXPERIMENTAL_ZFS_COMMA_SYNTAX_SUPPORTED", def)
-		debug("destroy feature check complete %#v", batchDestroyFeatureCheck)
+		debug("destroy feature check complete %#v", &batchDestroyFeatureCheck)
 	})
 	return batchDestroyFeatureCheck.enable, batchDestroyFeatureCheck.err
 }
