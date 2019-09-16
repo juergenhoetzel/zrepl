@@ -33,44 +33,67 @@ func ZFSSetReplicationCursor(fs *DatasetPath, snapname string, expGuid uint64) (
 		return errors.New("snapname must not be empty")
 	}
 	// must not check expGuid == 0, that might be legitimate
-
 	snapPath := fmt.Sprintf("%s@%s", fs.ToString(), snapname)
+
 	debug("replication cursor: snap path %q", snapPath)
-	propsSnap, err := zfsGet(snapPath, []string{"createtxg", "guid"}, sourceAny)
+
+	getInfo := func(ds string) (createtxg, guid uint64, err error) {
+		defer func(e *error) {
+			if *e != nil {
+				*e = errors.Wrapf(*e, "get properties `createtxg` and `guid` of %q", ds)
+			}
+		}(&err)
+		props, err := zfsGet(ds, []string{"createtxg", "guid"}, sourceAny)
+		if err != nil {
+			return 0, 0, err // return as is, used for bookmark existence check TODO go1.13
+		}
+		guid, err = strconv.ParseUint(props.Get("guid"), 10, 64)
+		if err != nil {
+			return 0, 0, errors.Wrap(err, "cannot parse  guid")
+		}
+		txg, err := strconv.ParseUint(props.Get("createtxg"), 10, 64)
+		if err != nil {
+			return 0, 0, errors.Wrap(err, "cannot parse createtxg")
+		}
+		return txg, guid, nil
+	}
+	snapTxg, snapActGuid, err := getInfo(snapPath)
 	if err != nil {
-		return errors.Wrap(err, "cannot get snapshot createtxg")
+		return err
 	}
-	actGuid, err := strconv.ParseUint(propsSnap.Get("guid"), 10, 64)
-	if err != nil {
-		return errors.Wrap(err, "cannot parse snapshot guid")
+
+	if expGuid != snapActGuid {
+		return fmt.Errorf("expected guid %v != actual guid %v for snap name %q", expGuid, snapActGuid, snapPath)
 	}
-	if expGuid != actGuid {
-		return fmt.Errorf("expected guid %v != actual guid %v for snap name %q", expGuid, actGuid, snapPath)
-	}
+
 	bookmarkPath := fmt.Sprintf("%s#%s", fs.ToString(), ReplicationCursorBookmarkName)
-	propsBookmark, err := zfsGet(bookmarkPath, []string{"createtxg"}, sourceAny)
+
+	bookmarkTxg, bookmarkGuid, err := getInfo(bookmarkPath)
 	_, bookmarkNotExistErr := err.(*DatasetDoesNotExist)
 	if err != nil && !bookmarkNotExistErr {
 		return errors.Wrap(err, "cannot get bookmark txg")
 	}
 	if err == nil {
-		bookmarkTxg, err := strconv.ParseUint(propsBookmark.Get("createtxg"), 10, 64)
-		if err != nil {
-			return errors.Wrap(err, "cannot parse bookmark createtxg")
-		}
-		snapTxg, err := strconv.ParseUint(propsSnap.Get("createtxg"), 10, 64)
-		if err != nil {
-			return errors.Wrap(err, "cannot parse snapshot createtxg")
-		}
+		// bookmark does exist
 		if snapTxg < bookmarkTxg {
 			return errors.New("cannot can only be advanced, not set back")
 		}
-		if err := ZFSDestroy(bookmarkPath); err != nil { // FIXME make safer by using new temporary bookmark, then rename, possible with channel programs
-			return errors.Wrap(err, "cannot destroy current cursor")
+
+		if bookmarkGuid == snapActGuid {
+			return nil // no action required
 		}
+
+		// FIXME make safer by using new temporary bookmark, then rename, possible with channel programs
+		// https://github.com/zfsonlinux/zfs/pull/7902/files might support this but is too new
+		if err := ZFSDestroy(bookmarkPath); err != nil {
+			return errors.Wrap(err, "cannot destroy current cursor to move it to new")
+		}
+		// fallthrough
 	}
+
 	if err := ZFSBookmark(fs, snapname, ReplicationCursorBookmarkName); err != nil {
 		return errors.Wrapf(err, "cannot create bookmark")
 	}
+
 	return nil
 }
