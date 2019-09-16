@@ -14,8 +14,9 @@ func (c Case) String() string {
 }
 
 var Cases = []Case{
-	// BatchDestroy,
-	// UndestroyableSnapshotParsing,
-	// GetNonexistent,
+	BatchDestroy,
+	UndestroyableSnapshotParsing,
+	GetNonexistent,
 	RollupRelease,
+	IdempotentHold,
 }
