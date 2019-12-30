@@ -12,6 +12,7 @@ import (
 	"github.com/zrepl/zrepl/config"
 	"github.com/zrepl/zrepl/tlsconf"
 	"github.com/zrepl/zrepl/transport"
+	"github.com/zrepl/zrepl/util/freebind"
 )
 
 type TLSListenerFactory struct{}
@@ -45,7 +46,7 @@ func TLSListenerFactoryFromConfig(c *config.Global, in *config.TLSServe) (transp
 	}
 
 	lf := func() (transport.AuthenticatedListener, error) {
-		l, err := net.Listen("tcp", address)
+		l, err := freebind.Listen("tcp", address)
 		if err != nil {
 			return nil, err
 		}

@@ -12,6 +12,7 @@ import (
 	"github.com/zrepl/zrepl/daemon/job"
 	"github.com/zrepl/zrepl/logger"
 	"github.com/zrepl/zrepl/rpc/dataconn/frameconn"
+	"github.com/zrepl/zrepl/util/freebind"
 	"github.com/zrepl/zrepl/zfs"
 )
 
@@ -60,7 +61,7 @@ func (j *prometheusJob) Run(ctx context.Context) {
 
 	log := job.GetLogger(ctx)
 
-	l, err := net.Listen("tcp", j.listen)
+	l, err := freebind.Listen("tcp", j.listen)
 	if err != nil {
 		log.WithError(err).Error("cannot listen")
 		return

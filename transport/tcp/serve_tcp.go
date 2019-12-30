@@ -8,6 +8,7 @@ import (
 
 	"github.com/zrepl/zrepl/config"
 	"github.com/zrepl/zrepl/transport"
+	"github.com/zrepl/zrepl/util/freebind"
 )
 
 type ipMapEntry struct {
@@ -44,20 +45,16 @@ func (m *ipMap) Get(ip net.IP) (string, error) {
 }
 
 func TCPListenerFactoryFromConfig(c *config.Global, in *config.TCPServe) (transport.AuthenticatedListenerFactory, error) {
-	addr, err := net.ResolveTCPAddr("tcp", in.Listen)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot parse listen address")
-	}
 	clientMap, err := ipMapFromConfig(in.Clients)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse client IP map")
 	}
 	lf := func() (transport.AuthenticatedListener, error) {
-		l, err := net.ListenTCP("tcp", addr)
+		l, err := freebind.Listen("tcp", in.Listen)
 		if err != nil {
 			return nil, err
 		}
-		return &TCPAuthListener{l, clientMap}, nil
+		return &TCPAuthListener{l.(*net.TCPListener), clientMap}, nil
 	}
 	return lf, nil
 }
